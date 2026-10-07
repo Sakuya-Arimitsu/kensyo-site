@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_parts.html" import job_cards %}
+{% block title %}採用情報 | {{ site.name }}{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="container">
+    <p class="page-kicker">RECRUIT</p>
+    <h1 class="page-title">採用情報</h1>
+    <p class="page-lead">現在募集している職種です。気になる職種があれば、お気軽にお問い合わせください。</p>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    {{ job_cards(jobs, root, preview) }}
+  </div>
+</section>
+{% endblock %}
