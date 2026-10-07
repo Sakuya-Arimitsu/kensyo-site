@@ -1,20 +1,15 @@
 {% extends "base.html" %}
 {% from "_parts.html" import news_list, job_cards %}
 {% block content %}
-<section class="hero{% if site.hero_image %} hero-with-image{% endif %}">
-  <div class="container hero-inner">
-    <div class="hero-body">
-      <p class="hero-kicker">{{ site.name }}</p>
-      <h1 class="hero-title">{{ site.tagline }}</h1>
-      <p class="hero-text">{{ site.about | nl2br | safe }}</p>
-      <div class="hero-actions">
-        <a class="button" href="{{ root }}jobs/index.html">採用情報を見る</a>
-        <a class="button button-ghost" href="#company">会社概要</a>
-      </div>
+<section class="hero">
+  <div class="container">
+    <p class="hero-kicker">{{ site.name }}</p>
+    <h1 class="hero-title">{{ site.tagline }}</h1>
+    <p class="hero-text">{{ site.about | nl2br | safe }}</p>
+    <div class="hero-actions">
+      <a class="button" href="{{ root }}jobs/index.html">採用情報を見る</a>
+      <a class="button button-ghost" href="#company">会社概要</a>
     </div>
-    {% if site.hero_image %}
-    <figure class="hero-image"><img src="{{ root }}{{ site.hero_image }}" alt="{{ site.hero_image_alt or '' }}"></figure>
-    {% endif %}
   </div>
 </section>
 

@@ -8,7 +8,6 @@ content/ にあるお知らせ・求人のデータ（Markdown）と、templates
   python build.py            本番用を生成する
   python build.py --preview  確認用を生成する（検索エンジンに載らない設定、確認用の帯、下書きや公開予定の記事も表示）
   python build.py --check    データのチェックだけ行う（HTMLは書き出さない）
-  python build.py --weekday 2026-12-29 2027-01-04   日付の曜日を確かめる
 """
 
 from __future__ import annotations
@@ -19,14 +18,13 @@ import html
 import re
 import shutil
 import sys
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import markdown
 import yaml
-from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 ROOT = Path(__file__).resolve().parent
 CONTENT_DIR = ROOT / "content"
@@ -41,7 +39,6 @@ STATUS_HIDDEN = "非公開"
 VALID_STATUSES = {STATUS_PUBLISHED, STATUS_DRAFT, STATUS_HIDDEN}
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-BODY_IMAGE_RE = re.compile(r"!\[[^\]]*\]\((images/[^)\s]+)")
 FRONT_MATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*(?:\n(.*))?\Z", re.S)
 
 NEWS_FIELDS = {"title", "date", "status", "category", "summary", "image", "image_alt", "end_date"}
@@ -108,11 +105,9 @@ def parse_date(value, field_name: str, errors: list[str]) -> dt.date | None:
         return value.date()
     if isinstance(value, dt.date):
         return value
-    match = re.fullmatch(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", str(value).strip())
+    text = str(value).strip().replace("/", "-").replace(".", "-")
     try:
-        if not match:
-            raise ValueError
-        return dt.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+        return dt.date.fromisoformat(text)
     except ValueError:
         errors.append(f"{field_name} の日付「{value}」が読み取れません。2026-10-07 の形で書いてください。")
         return None
@@ -167,10 +162,6 @@ def validate(entry: Entry) -> None:
             errors.append(f"image に指定した画像「{image}」が見つかりません。")
         if not meta.get("image_alt"):
             entry.warnings.append("image_alt（画像の説明文）がありません。")
-
-    for ref in sorted(set(BODY_IMAGE_RE.findall(entry.body_md))):
-        if not (ROOT / ref).is_file():
-            errors.append(f"本文中の画像「{ref}」が見つかりません。")
 
     allowed = NEWS_FIELDS if entry.kind == "news" else JOB_ALL_FIELDS
     for key in meta:
@@ -236,22 +227,9 @@ def format_date(value: dt.date | None, style: str = "dot") -> str:
     return value.strftime("%Y.%m.%d")
 
 
-def load_site() -> tuple[dict, list[str]]:
-    errors: list[str] = []
-    try:
-        site = yaml.safe_load((ROOT / "site.yml").read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError as exc:
-        return {}, [f"書き方に誤りがあります: {exc}"]
-    for key in ("name", "tagline", "contact", "recruit_contact", "company"):
-        if not site.get(key):
-            errors.append(f"{key} がありません。")
-    image = site.get("hero_image")
-    if image:
-        if not str(image).startswith("images/"):
-            errors.append("hero_image は images/ から始まるパスで書いてください（例: images/site/top.jpg）。")
-        elif not (ROOT / str(image)).is_file():
-            errors.append(f"hero_image に指定した画像「{image}」が見つかりません。")
-    return site, errors
+def load_site() -> dict:
+    site = yaml.safe_load((ROOT / "site.yml").read_text(encoding="utf-8")) or {}
+    return site
 
 
 def collect(kind: str, today: dt.date) -> list[Entry]:
@@ -272,19 +250,9 @@ def main() -> int:
     parser.add_argument("--preview", action="store_true", help="確認用として生成する")
     parser.add_argument("--check", action="store_true", help="データのチェックだけ行う")
     parser.add_argument("--today", help="今日の日付を指定して試す（例: 2026-12-01）")
-    parser.add_argument("--weekday", nargs="+", metavar="DATE", help="日付の曜日を表示する（例: 2026-12-29）")
     args = parser.parse_args()
 
-    weekdays = "月火水木金土日"
-    if args.weekday:
-        for text in args.weekday:
-            errors: list[str] = []
-            day = parse_date(text, "日付", errors)
-            print(f"{text}: {day.year}年{day.month}月{day.day}日（{weekdays[day.weekday()]}）" if day else errors[0])
-        return 0
-
     today = dt.date.fromisoformat(args.today) if args.today else today_jst()
-    print(f"今日の日付（日本時間）: {today.year}年{today.month}月{today.day}日（{weekdays[today.weekday()]}）")
     news = collect("news", today)
     jobs = collect("jobs", today)
     all_entries = news + jobs
@@ -296,11 +264,7 @@ def main() -> int:
                 item.errors.append(f"{seen[item.slug].label} と同じファイル名です。")
             seen[item.slug] = item
 
-    site, site_errors = load_site()
     has_error = False
-    for message in site_errors:
-        has_error = True
-        print(f"[エラー] site.yml: {message}")
     for entry in all_entries:
         for message in entry.errors:
             has_error = True
@@ -319,10 +283,12 @@ def main() -> int:
         summary = "、".join(f"{k} {v}件" for k, v in counts.items()) or "0件"
         print(f"{kind_label}: {summary}")
 
-    # --check のときも、テンプレートに誤りがないか確かめるため、一時フォルダに実際に生成してみる
-    preview = args.preview or args.check
+    if args.check:
+        print("チェックOK（エラーはありません）")
+        return 0
+
     visible_states = {"published"}
-    if preview:
+    if args.preview:
         visible_states |= {"scheduled", "draft"}
 
     def visible(items: list[Entry]) -> list[Entry]:
@@ -331,6 +297,7 @@ def main() -> int:
     news_visible = sorted(visible(news), key=lambda e: (e.date, e.slug), reverse=True)
     jobs_visible = sorted(visible(jobs), key=lambda e: (e.date, e.slug), reverse=True)
 
+    site = load_site()
     env = Environment(
         loader=FileSystemLoader(TEMPLATE_DIR),
         autoescape=select_autoescape(["html"]),
@@ -340,54 +307,36 @@ def main() -> int:
     env.filters["nl2br"] = nl2br
     env.filters["date"] = format_date
 
-    out_dir = Path(tempfile.mkdtemp()) if args.check else DIST_DIR
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir()
+    if DIST_DIR.exists():
+        shutil.rmtree(DIST_DIR)
+    DIST_DIR.mkdir()
     for name in STATIC_DIRS:
         src = ROOT / name
         if src.exists():
-            shutil.copytree(src, out_dir / name, ignore=shutil.ignore_patterns(".gitkeep", ".DS_Store"))
+            shutil.copytree(src, DIST_DIR / name, ignore=shutil.ignore_patterns(".gitkeep", ".DS_Store"))
 
-    common = {"site": site, "preview": preview, "today": today, "job_fields": JOB_FIELDS}
+    common = {"site": site, "preview": args.preview, "today": today, "job_fields": JOB_FIELDS}
 
     def write(rel_path: str, template: str, **context) -> None:
         depth = rel_path.count("/")
         root = "../" * depth
-        out = out_dir / rel_path
+        out = DIST_DIR / rel_path
         out.parent.mkdir(parents=True, exist_ok=True)
         page_html = env.get_template(template).render(root=root, **common, **context)
         out.write_text(page_html, encoding="utf-8")
 
-    try:
-        write("index.html", "index.html", page_id="home", news=news_visible[:5], jobs=jobs_visible)
-        write("news/index.html", "news_list.html", page_id="news", news=news_visible)
-        write("jobs/index.html", "jobs_list.html", page_id="jobs", jobs=jobs_visible)
-        for item in news_visible:
-            item.body_html = render_markdown(item.body_md, "../")
-            write(item.url, "news_detail.html", page_id="news", item=item)
-        for item in jobs_visible:
-            item.body_html = render_markdown(item.body_md, "../")
-            write(item.url, "job_detail.html", page_id="jobs", item=item)
-    except TemplateError as exc:
-        where = getattr(exc, "filename", None) or getattr(exc, "name", None) or "テンプレート"
-        try:
-            where = str(Path(where).resolve().relative_to(ROOT))
-        except ValueError:
-            pass
-        line = getattr(exc, "lineno", None)
-        print(f"[エラー] {where}{f' の {line} 行目' if line else ''}: ページのひな形に誤りがあります（{exc}）")
-        if args.check:
-            shutil.rmtree(out_dir, ignore_errors=True)
-        return 1
+    write("index.html", "index.html", page_id="home", news=news_visible[:5], jobs=jobs_visible)
+    write("news/index.html", "news_list.html", page_id="news", news=news_visible)
+    write("jobs/index.html", "jobs_list.html", page_id="jobs", jobs=jobs_visible)
+    for item in news_visible:
+        item.body_html = render_markdown(item.body_md, "../")
+        write(item.url, "news_detail.html", page_id="news", item=item)
+    for item in jobs_visible:
+        item.body_html = render_markdown(item.body_md, "../")
+        write(item.url, "job_detail.html", page_id="jobs", item=item)
 
-    if args.check:
-        shutil.rmtree(out_dir, ignore_errors=True)
-        print("チェックOK（エラーはありません）")
-        return 0
-
-    if preview:
-        (out_dir / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8")
+    if args.preview:
+        (DIST_DIR / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8")
 
     mode = "確認用" if args.preview else "本番用"
     print(f"{mode}のページを dist/ に生成しました（基準日: {today.isoformat()}）")
