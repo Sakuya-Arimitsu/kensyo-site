@@ -6,7 +6,7 @@
   <div class="container">
     <p class="page-kicker">RECRUIT</p>
     <h1 class="page-title">採用情報</h1>
-    <p class="page-lead">現在募集している職種です。気になる職種があれば、お気軽にお問い合わせください。</p>
+    {% if site.jobs_lead %}<p class="page-lead">{{ site.jobs_lead }}</p>{% endif %}
   </div>
 </section>
 <section class="section">

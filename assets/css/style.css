@@ -113,6 +113,16 @@ a:hover { color: var(--color-accent-dark); }
 }
 .hero-text { max-width: 640px; margin: 0 0 32px; color: var(--color-muted); }
 .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero-inner { display: grid; gap: 40px; align-items: center; }
+.hero-with-image .hero-inner { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.hero-image { margin: 0; }
+.hero-image img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
 
 .button {
   display: inline-block;
@@ -278,6 +288,10 @@ a:hover { color: var(--color-accent-dark); }
 .copyright { margin: 0; color: #8d969a; font-size: 12px; }
 
 /* スマートフォン */
+@media (max-width: 860px) {
+  .hero-with-image .hero-inner { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 640px) {
   .hero { padding: 56px 0; }
   .section { padding: 48px 0; }
