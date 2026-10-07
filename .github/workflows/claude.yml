@@ -1,0 +1,67 @@
+name: Claude（Issueからの更新）
+
+# Issueやコメントに「@claude」と書かれたときに、Claude が動きます。
+#  - 新しいIssueの本文やタイトルに @claude があるとき
+#  - Issueや公開申請のコメントに @claude があるとき
+# Claude 自身や自動処理（Bot）のコメントには反応しません。
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+# 同じIssueへの依頼は、前の作業が終わってから順番に処理する
+concurrency:
+  group: claude-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.comment.user.type != 'Bot' &&
+        contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - name: リポジトリのファイルを取り出す（履歴も含む）
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Pythonを準備する
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: サイト生成・画像処理に必要な部品をインストールする
+        run: pip install -r requirements.txt
+
+      - name: Issueに貼られた画像をダウンロードする
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          mkdir -p /tmp/github-images
+          python .github/scripts/fetch_issue_images.py
+
+      - name: Claudeが作業する
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --allowedTools "Bash(python build.py:*),Bash(python tools/prepare_image.py:*),Bash(cp:*),Bash(mkdir:*),Bash(ls:*),Bash(git log:*),Bash(git show:*),Bash(git diff:*),Bash(git restore:*),Bash(git tag:*),Bash(git fetch:*)"
+            --add-dir /tmp/issue-images
+            --add-dir /tmp/github-images
