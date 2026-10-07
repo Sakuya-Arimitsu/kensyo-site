@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_parts.html" import news_list, job_cards %}
+{% block content %}
+<section class="hero{% if site.hero_image %} hero-with-image{% endif %}">
+  <div class="container hero-inner">
+    <div class="hero-body">
+      <p class="hero-kicker">{{ site.name }}</p>
+      <h1 class="hero-title">{{ site.tagline }}</h1>
+      <p class="hero-text">{{ site.about | nl2br | safe }}</p>
+      <div class="hero-actions">
+        <a class="button" href="{{ root }}jobs/index.html">採用情報を見る</a>
+        <a class="button button-ghost" href="#company">会社概要</a>
+      </div>
+    </div>
+    {% if site.hero_image %}
+    <figure class="hero-image"><img src="{{ root }}{{ site.hero_image }}" alt="{{ site.hero_image_alt or '' }}"></figure>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">お知らせ</h2>
+      <a class="section-link" href="{{ root }}news/index.html">一覧を見る</a>
+    </div>
+    {{ news_list(news, root, preview) }}
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-head">
+      <h2 class="section-title">採用情報</h2>
+      <a class="section-link" href="{{ root }}jobs/index.html">一覧を見る</a>
+    </div>
+    {{ job_cards(jobs, root, preview) }}
+  </div>
+</section>
+
+<section class="section" id="company">
+  <div class="container">
+    <h2 class="section-title">会社概要</h2>
+    <dl class="info-table">
+    {% for row in site.company %}
+      <div><dt>{{ row[0] }}</dt><dd>{{ row[1] }}</dd></div>
+    {% endfor %}
+      <div><dt>お問い合わせ</dt><dd>TEL {{ site.contact.tel }}（{{ site.contact.hours }}）<br>{{ site.contact.email }}</dd></div>
+    </dl>
+  </div>
+</section>
+{% endblock %}

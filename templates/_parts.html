@@ -1,0 +1,47 @@
+{% macro state_badge(item, preview) %}
+{% if preview and item.state == "draft" %}<span class="badge badge-draft">下書き（公開されません）</span>{% endif %}
+{% if preview and item.state == "scheduled" %}<span class="badge badge-scheduled">{{ item.date | date }} 公開予定</span>{% endif %}
+{% endmacro %}
+
+{% macro news_list(items, root, preview) %}
+<ul class="news-list">
+{% for item in items %}
+  <li class="news-item">
+    <a href="{{ root }}{{ item.url }}">
+      <time datetime="{{ item.date.isoformat() }}">{{ item.date | date }}</time>
+      {% if item.meta.category %}<span class="category">{{ item.meta.category }}</span>{% endif %}
+      <span class="news-title">{{ item.title }}</span>
+      {% if preview and item.state == "draft" %}<span class="badge badge-draft">下書き</span>{% endif %}
+      {% if preview and item.state == "scheduled" %}<span class="badge badge-scheduled">公開予定</span>{% endif %}
+    </a>
+  </li>
+{% else %}
+  <li class="empty">現在お知らせはありません。</li>
+{% endfor %}
+</ul>
+{% endmacro %}
+
+{% macro job_cards(items, root, preview) %}
+{% if items %}
+<div class="job-cards">
+{% for item in items %}
+  <a class="job-card" href="{{ root }}{{ item.url }}">
+    <div class="job-card-tags">
+      <span class="tag">{{ item.meta.employment_type }}</span>
+      {% if preview and item.state == "draft" %}<span class="badge badge-draft">下書き</span>{% endif %}
+      {% if preview and item.state == "scheduled" %}<span class="badge badge-scheduled">{{ item.date | date }} 公開予定</span>{% endif %}
+    </div>
+    <h3 class="job-card-title">{{ item.title }}</h3>
+    {% if item.meta.summary %}<p class="job-card-summary">{{ item.meta.summary }}</p>{% endif %}
+    <dl class="job-card-meta">
+      <div><dt>勤務地</dt><dd>{{ item.meta.location | nl2br | safe }}</dd></div>
+      <div><dt>給与</dt><dd>{{ item.meta.salary | nl2br | safe }}</dd></div>
+    </dl>
+    <span class="more">詳しく見る</span>
+  </a>
+{% endfor %}
+</div>
+{% else %}
+<p class="empty">現在募集している職種はありません。</p>
+{% endif %}
+{% endmacro %}
