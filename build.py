@@ -8,6 +8,7 @@ content/ にあるお知らせ・求人のデータ（Markdown）と、templates
   python build.py            本番用を生成する
   python build.py --preview  確認用を生成する（検索エンジンに載らない設定、確認用の帯、下書きや公開予定の記事も表示）
   python build.py --check    データのチェックだけ行う（HTMLは書き出さない）
+  python build.py --weekday 2026-12-29 2027-01-04   日付の曜日を確かめる
 """
 
 from __future__ import annotations
@@ -105,9 +106,11 @@ def parse_date(value, field_name: str, errors: list[str]) -> dt.date | None:
         return value.date()
     if isinstance(value, dt.date):
         return value
-    text = str(value).strip().replace("/", "-").replace(".", "-")
+    match = re.fullmatch(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})", str(value).strip())
     try:
-        return dt.date.fromisoformat(text)
+        if not match:
+            raise ValueError
+        return dt.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
     except ValueError:
         errors.append(f"{field_name} の日付「{value}」が読み取れません。2026-10-07 の形で書いてください。")
         return None
@@ -250,9 +253,19 @@ def main() -> int:
     parser.add_argument("--preview", action="store_true", help="確認用として生成する")
     parser.add_argument("--check", action="store_true", help="データのチェックだけ行う")
     parser.add_argument("--today", help="今日の日付を指定して試す（例: 2026-12-01）")
+    parser.add_argument("--weekday", nargs="+", metavar="DATE", help="日付の曜日を表示する（例: 2026-12-29）")
     args = parser.parse_args()
 
+    weekdays = "月火水木金土日"
+    if args.weekday:
+        for text in args.weekday:
+            errors: list[str] = []
+            day = parse_date(text, "日付", errors)
+            print(f"{text}: {day.year}年{day.month}月{day.day}日（{weekdays[day.weekday()]}）" if day else errors[0])
+        return 0
+
     today = dt.date.fromisoformat(args.today) if args.today else today_jst()
+    print(f"今日の日付（日本時間）: {today.year}年{today.month}月{today.day}日（{weekdays[today.weekday()]}）")
     news = collect("news", today)
     jobs = collect("jobs", today)
     all_entries = news + jobs
