@@ -7,11 +7,13 @@ GitHubのIssueに `@claude` と書いて頼むだけで、お知らせ・求人�
       ↓ 自動
 ② Claudeがコメントで返事（質問・文章の提案・修正内容の報告）
       ↓ 「@claude これでOK」とコメント（小さな修正は①のあとすぐ保存されます）
-③ Claudeが下書きを保存 → 公開申請が自動で作られ、Issueにリンクが届く
+③ Claudeが下書きを保存
       ↓ 自動
-④ 確認用ページに反映（https://hisazumi-test.com/kensyo-preview/）
-      ↓ 見た目を確認して「Merge pull request」→「Confirm merge」
-⑤ 本番サイトに反映（https://hisazumi-test.com/kensyo/）、Issueも自動で閉じる
+④ 確認用ページ（GitHub Pages）が更新され、URLがコメントで届く
+      ↓ 見た目を確認して、Claudeの返事の「Create PR」から公開申請を作る
+⑤ 公開申請で「Merge pull request」→「Confirm merge」
+      ↓ 自動
+⑥ 本番サイトに反映（https://hisazumi-test.com/kensyo/）
 ```
 
 - **予約公開**：公開日を未来にすると、その日の朝6時ごろに自動で公開されます
@@ -21,55 +23,41 @@ GitHubのIssueに `@claude` と書いて頼むだけで、お知らせ・求人�
 
 ---
 
-## 1. GitHubでClaudeを使えるようにする設定（最初に1回）
+## 1. 最初の設定（1回だけ）
 
 ### 1-1. Claude GitHub App をリポジトリに入れる
 
 1. https://github.com/apps/claude を開き、「Configure」（初めてなら「Install」）を押します
-2. 自分のアカウントを選び、「Only select repositories」でこのリポジトリ（kensyo）を選んで保存します
+2. 自分のアカウントを選び、「Only select repositories」でこのリポジトリを選んで保存します
 
-すでに `@claude` で動いたことがあれば、この設定は済んでいます。
+### 1-2. シークレットを登録する
 
-### 1-2. Claudeを動かすためのトークンを登録する
+**Settings → Secrets and variables → Actions** に、次の4つを登録します。
 
-1. パソコンのターミナルで `claude setup-token` を実行し、表示されたトークンをコピーします（Claude Code がインストールされている必要があります。Claudeの Pro 以上のプランで使えます）
-2. リポジトリの **Settings → Secrets and variables → Actions → New repository secret** を開きます
-3. Name に `CLAUDE_CODE_OAUTH_TOKEN`、Secret にコピーしたトークンを貼り付けて保存します
-
-すでに登録済みなら、そのままで大丈夫です。Claudeが動くたびに、このトークンの持ち主のClaudeの利用枠を使います。
-
-### 1-3. Xserverへのアップロード用の情報を登録する
-
-同じ画面で、`FTP_SERVER`、`FTP_USERNAME`、`FTP_PASSWORD` が登録されていることを確認します（今までのものをそのまま使います）。
-
-### 1-4. GitHub Actions の権限を設定する
-
-**Settings → Actions → General** を開き、次のように設定して、それぞれ「Save」を押します。
-
-| 項目 | 設定 |
+| 名前 | 中身 |
 | --- | --- |
-| Actions permissions | 「Allow all actions and reusable workflows」（初期設定のまま） |
-| Workflow permissions | 「Read repository contents and packages permissions」（初期設定のまま） |
-| 同じ欄のチェックボックス | **「Allow GitHub Actions to create and approve pull requests」にチェック** |
+| `CLAUDE_CODE_OAUTH_TOKEN` | パソコンのターミナルで `claude setup-token` を実行して表示されたトークン（Claudeの Pro 以上のプランが必要） |
+| `FTP_SERVER` | XserverのFTPホスト名（`sv○○○○.xserver.jp` の形。`ftp://` や末尾の `/` は付けない） |
+| `FTP_USERNAME` | FTPのユーザー名 |
+| `FTP_PASSWORD` | FTPのパスワード |
 
-チェックが必要なのは、公開申請を自動で作るのが Claude ではなく GitHub Actions の自動処理（`auto-pr.yml`）だからです。GitHub は初期設定で、自動処理がプルリクエストを作ることを禁止しています。チェックしない場合も Claude の作業や確認用ページの更新は動きますが、公開申請は作られず、毎回 Claude のコメントの「Create PR」から自分で作る必要があります。
-各ワークフローは必要な権限をファイルの中で個別に指定しているので、標準の権限は読み取りのみのままで問題ありません。
+Claudeが動くたびに、`CLAUDE_CODE_OAUTH_TOKEN` の持ち主のClaudeの利用枠を使います。
 
-### 1-5. リポジトリは「非公開（Private）」がおすすめ
+### 1-3. 確認用ページ（GitHub Pages）を使えるようにする
 
-Issueには、公開前の下書きややり取りが残ります。公開（Public）リポジトリだと誰でも読めてしまうため、Settings → General の一番下「Danger Zone」→「Change repository visibility」で Private にしておくと安心です。
-なお、非公開リポジトリでは GitHub Actions の実行時間に無料枠があります（GitHub Free の場合、月2,000分）。1回の依頼で数分使います。
+1. **Settings → Pages** を開き、「Build and deployment」の **Source** を **「GitHub Actions」** に変えます
+2. **Settings → Environments** を開き、**「github-pages」** を選びます（1の操作で自動で作られます。なければ、一度下書きを保存すると作られます）
+3. 「Deployment branches and tags」を **「No restriction」** に変えて保存します
+   （初期設定では main からしか公開できず、Claudeの下書きから確認用ページを作れないため）
 
-### 1-6. ファイルを置く
+注意：
 
-1. このフォルダの中身を、リポジトリの直下に置きます
-2. 以前の検証で使った `index.html`、`images/` などは削除します（ページは `build.py` が自動で作るため）
-3. `.github/workflows/` にある以前の `claude.yml`、`deploy.yml` は、この新しいものに置き換えます
-4. main に反映すると「本番サイトに公開」が動き、`https://hisazumi-test.com/kensyo/` にサイトが表示されます
+- **非公開（Private）リポジトリでGitHub Pagesを使うには、GitHubの有料プラン（Pro など）が必要**です。無料プランの場合、Settings → Pages に「Upgrade」などの案内が表示されます。その場合は、リポジトリを公開（Public）にするか、有料プランにします
+- 確認用ページのURLは、知っていれば誰でも見られます（検索エンジンには載らない設定にしています）。まだ公開前の内容が表示されることに注意してください
 
-### 1-7. 確認用ページにパスワードをかける（推奨）
+### 1-4. Actions の設定を確認する
 
-確認用ページは検索エンジンに載らない設定にしていますが、URLを知っていれば誰でも見られます。Xserverのサーバーパネルの「アクセス制限」で、`kensyo-preview` フォルダにユーザー名とパスワードを設定しておくと安心です。
+**Settings → Actions → General** の「Actions permissions」が「Allow all actions and reusable workflows」（初期設定）になっていることを確認します。
 
 ### Claudeは何を読み込んで動くのか
 
@@ -125,17 +113,19 @@ GitHub上のClaudeは、作業のたびにこのリポジトリの次のファ�
 
 ### 確認して公開する
 
-1. 保存から数分後、Issueに **「公開申請を作りました」** というコメントが届きます。リンクから公開申請のページを開きます
-2. ページ内の **確認用ページ** のリンクを開き、見た目を確認します（上部に黄色い「確認用ページです」の帯が出ます）
-3. 直したいところがあれば、**公開申請のページ**の一番下のコメント欄に `@claude ○○を直してください` と書きます。数分後に確認用ページが更新されます
-4. 問題がなければ、公開申請のページで **「Merge pull request」→「Confirm merge」** を押します。2〜3分後に本番サイトに反映され、元のIssueも自動で閉じます
+1. Claudeが保存すると、1〜2分後にIssueに **「確認用ページを更新しました」** というコメントが届きます。リンクを開いて見た目を確認します（上部に黄色い「確認用ページです」の帯が出ます）
+2. 直したいところがあれば、同じIssueで `@claude ○○を直して` と頼みます。Claudeは前回の変更を引き継いで直します
+3. 問題がなければ、**Claudeの最新の返事** の下にある **「Create PR」** のリンクを押し、開いた画面で **「Create pull request」** を押します。これが公開申請です
+4. 公開申請のページで **「Merge pull request」→「Confirm merge」** を押します。2〜3分後に本番サイトに反映されます
+5. 元のIssueが開いたままなら、「Close issue」で閉じます
+
+公開申請を作ったあとに直したいところが見つかったら、**公開申請のページ**のコメント欄に `@claude ○○を直して` と書きます。確認用ページのURLも、公開申請のページに届きます。
 
 ### 注意
 
 - **1つのIssueでは、1つの用件**を扱います。別の用件は新しいIssueで依頼してください
-- 公開申請ができたあとの修正は、**公開申請のページ**でコメントしてください（元のIssueでは頼まないでください）
-- 確認用ページはみんなで1つを共有しています。別の公開申請の下書きが表示されていることもあります
-- Claudeのコメントに出る「Create PR」のリンクは使いません（公開申請は自動で作られます）
+- 「Create PR」のリンクは、**いちばん新しい返事のもの**を使ってください
+- 確認用ページは1つだけです。別の下書きを保存すると、その内容に置き換わります
 - デザインや配置の変更、ページの追加は、Claudeは対応しません（管理者が行います）
 
 ### 困ったとき
@@ -143,8 +133,8 @@ GitHub上のClaudeは、作業のたびにこのリポジトリの次のファ�
 | 困りごと | 対処 |
 | --- | --- |
 | Claudeが返事をしない | コメントに `@claude` が付いているか確認してください。Actionsタブで「Claude（Issueからの更新）」が失敗していないかも確認します |
-| 公開申請が届かない | Actionsタブで「公開申請を自動で作る」の結果を確認します。「1-4」のチェックボックスが入っていないと失敗します |
-| 確認用ページが変わらない | 反映まで1〜2分かかります。ページを再読み込みしてください |
+| 確認用ページのURLが届かない | Actionsタブで「確認用ページを更新」の結果を確認します。失敗している場合は「1-3」の設定を見直してください |
+| 確認用ページが変わらない | 反映まで1分ほどかかります。ページを再読み込みしてください |
 | 画像が使われなかった | 画像をもう一度コメントに貼り、`@claude この画像を使って` と書いてください |
 | 急いで本番から消したい | 「Pull requests」タブの「Closed」から、その内容を公開したときの公開申請を開き、一番下の「Revert」→ 新しくできた公開申請で「Merge pull request」→「Confirm merge」を押すと、2〜3分で元に戻ります |
 
@@ -161,9 +151,8 @@ GitHub上のClaudeは、作業のたびにこのリポジトリの次のファ�
 | ファイル | 動くとき | すること |
 | --- | --- | --- |
 | `claude.yml` | Issueやコメントに `@claude` が書かれたとき | Issueの画像をダウンロードし、Claudeが返事・作業をする |
-| `auto-pr.yml` | Claudeが下書き（`claude/` で始まるブランチ）を保存したとき | 公開申請を作り、元のIssueにリンクを知らせる |
-| `preview.yml` | main 以外のブランチに保存されたとき | 確認用ページを生成してアップロード |
-| `deploy.yml` | main に反映されたとき、毎朝6時ごろ | 本番ページを生成してアップロード、公開の記録（タグ）を残す |
+| `preview.yml` | main 以外のブランチ（Claudeの下書き）に保存されたとき | 確認用ページを生成して GitHub Pages に公開し、URLをコメントで知らせる |
+| `deploy.yml` | main に反映されたとき、毎朝6時ごろ | 本番ページを生成してXserverにアップロード、公開の記録（タグ）を残す |
 
 ### ファイル構成
 
@@ -180,7 +169,7 @@ GitHub上のClaudeは、作業のたびにこのリポジトリの次のファ�
 ├── CLAUDE.md          Claudeへの作業ルール
 ├── .claude/skills/    Claudeの作業手順
 └── .github/
-    ├── scripts/       画像のダウンロード、公開申請の文面づくり
+    ├── scripts/       Issueの画像をダウンロードするプログラム
     └── workflows/     自動処理の設定
 ```
 
@@ -197,7 +186,7 @@ GitHub上のClaudeは、作業のたびにこのリポジトリの次のファ�
 
 ### 本番ドメインが決まったら
 
-`deploy.yml` の `server-dir`、`CLAUDE.md` と `auto-pr.yml` に書かれているURLを書き換えてください。
+`deploy.yml` の `server-dir` と、`CLAUDE.md` に書かれている本番サイトのURLを書き換えてください。
 
 ### 手元でページを生成する
 
