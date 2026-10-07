@@ -71,5 +71,4 @@ summary: 2026年12月29日（火）から2027年1月4日（月）まで休業し
 
 ## 4. 保存
 
-CLAUDE.md の「保存のしかた」に従う。確認用ページのURLは
-`https://hisazumi-test.com/kensyo-preview/news/ファイル名.html`
+CLAUDE.md の「保存のしかた」に従う。確認用ページのURLは、CLAUDE.md の「URL」を参照する（`確認用ページのURL/news/ファイル名.html`）。

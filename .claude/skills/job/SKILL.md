@@ -96,5 +96,4 @@ apply: 下記の電話またはメールでご連絡ください。
 
 ## 5. 保存
 
-CLAUDE.md の「保存のしかた」に従う。確認用ページのURLは
-`https://hisazumi-test.com/kensyo-preview/jobs/ファイル名.html`
+CLAUDE.md の「保存のしかた」に従う。確認用ページのURLは、CLAUDE.md の「URL」を参照する（`確認用ページのURL/jobs/ファイル名.html`）。
